@@ -26,8 +26,16 @@
 // we import them straight from a public CDN URL. That keeps this
 // app buildless: you can open this file in a browser with no
 // compile step.
-import * as Y from "https://esm.sh/yjs@13";
-import { WebsocketProvider } from "https://esm.sh/y-websocket@2?deps=yjs@13";
+// Both of these packages need to share the exact same copy of Yjs
+// internally, or their internal checks silently fail to notice
+// each other's data. "yjs" below is a bare name — the browser
+// resolves it using the <script type="importmap"> in index.html,
+// which points it at one specific CDN file. `?external=yjs` tells
+// esm.sh not to bundle its own copy of yjs into y-websocket, so it
+// resolves "yjs" the same way, through that same import map, and
+// both packages end up using the identical module.
+import * as Y from "yjs";
+import { WebsocketProvider } from "https://esm.sh/y-websocket@2?external=yjs";
 
 // --- Connect to the shared, synced document --------------------
 // Change SERVER_URL to point at a real server once you're hosting
@@ -138,6 +146,33 @@ function computeGenerations() {
   for (const id of people.keys()) {
     result.set(id, generationOf(id, new Set()));
   }
+
+  // Someone with no recorded parents defaults to generation 0 —
+  // right for a true founding ancestor, wrong for someone who
+  // simply married into a later generation (the far more common
+  // case). Pull anyone like that down to match their spouse's
+  // generation instead. Repeat until nothing changes, since a
+  // chain of such spouses could need more than one pass; each pass
+  // only ever raises a generation number and there are finitely
+  // many people, so this always finishes.
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const id of people.keys()) {
+      const person = people.get(id);
+      const hasRealParent = (person.parents || []).some((pid) => people.has(pid));
+      if (hasRealParent) continue;
+      for (const spouseId of person.spouses || []) {
+        if (!people.has(spouseId)) continue;
+        const spouseGeneration = result.get(spouseId);
+        if (spouseGeneration > result.get(id)) {
+          result.set(id, spouseGeneration);
+          changed = true;
+        }
+      }
+    }
+  }
+
   return result;
 }
 
@@ -164,27 +199,47 @@ function computeLayout() {
   for (let generation = 0; generation <= maxGeneration; generation++) {
     const ids = byGeneration.get(generation) || [];
 
-    if (generation === 0) {
-      // Top row: just line everyone up evenly.
-      ids.forEach((id, index) => positions.set(id, index * MIN_SPACING));
-      continue;
-    }
+    // Place everyone in this row. Most people can be seeded from
+    // their own parents' x position (average of both, if two are
+    // recorded), or from a spouse's x position if they have no
+    // recorded parents (e.g. someone who married in). But a spouse
+    // can only be used as a seed once *that* spouse already has a
+    // position — and a "root couple" (neither person has parents
+    // recorded) starts with nothing to seed from at all. So this
+    // runs as repeated passes: place whoever can be placed, and if
+    // a whole pass places no one (everyone left is waiting on each
+    // other), place just one of them arbitrarily to break the tie,
+    // which then lets the rest follow from it.
+    const remaining = new Set(ids);
+    while (remaining.size > 0) {
+      let placedSomeone = false;
 
-    // Seed every person's x from their own parents (average of
-    // both, if two are recorded), or next to their spouse if they
-    // have no recorded parents (e.g. someone who married in).
-    for (const id of ids) {
-      const person = people.get(id);
-      const parentXs = (person.parents || [])
-        .filter((pid) => positions.has(pid))
-        .map((pid) => positions.get(pid));
+      for (const id of remaining) {
+        const person = people.get(id);
+        const parentXs = (person.parents || [])
+          .filter((pid) => positions.has(pid))
+          .map((pid) => positions.get(pid));
 
-      if (parentXs.length > 0) {
-        const average = parentXs.reduce((sum, x) => sum + x, 0) / parentXs.length;
-        positions.set(id, average);
-      } else {
-        const spouseWithPosition = (person.spouses || []).find((sid) => positions.has(sid));
-        positions.set(id, spouseWithPosition ? positions.get(spouseWithPosition) + MIN_SPACING : 0);
+        if (parentXs.length > 0) {
+          positions.set(id, parentXs.reduce((sum, x) => sum + x, 0) / parentXs.length);
+          remaining.delete(id);
+          placedSomeone = true;
+          continue;
+        }
+
+        const positionedSpouse = (person.spouses || []).find((sid) => positions.has(sid));
+        if (positionedSpouse !== undefined) {
+          positions.set(id, positions.get(positionedSpouse) + MIN_SPACING);
+          remaining.delete(id);
+          placedSomeone = true;
+        }
+      }
+
+      if (!placedSomeone) {
+        const nextId = remaining.values().next().value;
+        const usedXs = [...positions.values()];
+        positions.set(nextId, (usedXs.length > 0 ? Math.max(...usedXs) : 0) + MIN_SPACING);
+        remaining.delete(nextId);
       }
     }
 
@@ -292,6 +347,11 @@ function render() {
 // Redraw any time the shared data changes — whether the change
 // came from this browser tab or from someone else's.
 people.observe(render);
+
+// Also draw once immediately: if this tab already has synced data
+// by the time this script runs (e.g. a fast reconnect), there is
+// no "change" event to wait for.
+render();
 
 // --- The "add / edit person" popup ---------------------------------
 

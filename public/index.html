@@ -68,8 +68,16 @@
     </form>
   </dialog>
 
-  <!-- type="module" lets us use "import" statements below, straight from a
-       CDN — no install step, no bundler, just a script tag. -->
+  <!-- An import map tells the browser what a bare name like "yjs" actually
+       points to. app.js and the y-websocket library it loads both need to
+       import the *exact same* copy of yjs, or they won't recognize each
+       other's data — this map is what guarantees that. -->
+  <script type="importmap">
+    { "imports": { "yjs": "https://esm.sh/yjs@13" } }
+  </script>
+
+  <!-- type="module" lets us use "import" statements in app.js, straight
+       from a CDN — no install step, no bundler, just a script tag. -->
   <script type="module" src="app.js"></script>
 </body>
 </html>
