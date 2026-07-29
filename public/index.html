@@ -1,0 +1,75 @@
+<!--
+  This is the only HTML page in the app. Everything (the tree drawing, the
+  edit popup, the "add person" logic) is one page that updates itself —
+  there's no server-rendered page navigation to worry about.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Family Tree</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header>
+    <h1>Family Tree</h1>
+    <!-- Adding a person with no parents/spouses starts a new, unconnected
+         branch of the tree (useful for the very first person, or someone
+         who married into the family with no recorded parents of their own). -->
+    <button id="add-person-btn">+ Add person</button>
+  </header>
+
+  <!-- The tree itself is drawn as SVG shapes (circles + lines) rather than
+       as a picture file, so JavaScript can create/move/remove shapes to
+       match the data live. -->
+  <svg id="tree"></svg>
+
+  <!-- A native <dialog> is the browser's built-in popup element — it
+       already knows how to show/hide/center itself, so we don't need any
+       extra library just to show a popup box. -->
+  <dialog id="person-dialog">
+    <form id="person-form">
+      <h2 id="dialog-title">Person</h2>
+
+      <label>
+        Name
+        <input id="field-name" type="text" required>
+      </label>
+
+      <label>
+        Born (year)
+        <input id="field-birth" type="number">
+      </label>
+
+      <label>
+        Died (year)
+        <input id="field-death" type="number">
+      </label>
+
+      <label>
+        What we remember about them
+        <textarea id="field-comment" rows="4"></textarea>
+      </label>
+
+      <div class="dialog-actions">
+        <button type="submit">Save</button>
+        <button type="button" id="close-btn">Close</button>
+      </div>
+
+      <hr>
+
+      <div class="relative-actions">
+        <button type="button" id="add-spouse-btn">+ Add spouse</button>
+        <button type="button" id="add-child-btn">+ Add child</button>
+        <button type="button" id="add-parent-btn">+ Add parent</button>
+        <button type="button" id="delete-btn" class="danger">Delete person</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- type="module" lets us use "import" statements below, straight from a
+       CDN — no install step, no bundler, just a script tag. -->
+  <script type="module" src="app.js"></script>
+</body>
+</html>

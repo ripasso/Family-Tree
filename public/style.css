@@ -1,0 +1,94 @@
+/* Minimal styling — just enough to make the tree readable. */
+
+body {
+  font-family: system-ui, sans-serif;
+  margin: 0;
+  color: #222;
+  background: #fafafa;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid #ddd;
+  background: white;
+}
+
+header h1 {
+  font-size: 1.1rem;
+  margin: 0;
+  flex: 1;
+}
+
+button {
+  cursor: pointer;
+}
+
+#tree {
+  display: block;
+  width: 100%;
+  height: calc(100vh - 56px);
+}
+
+/* Each person: a circle plus their name underneath. */
+.tree-node circle {
+  fill: #cfe3ff;
+  stroke: #3b6fb5;
+  stroke-width: 2;
+}
+
+.tree-node:hover circle {
+  fill: #b3d4ff;
+}
+
+.tree-node text {
+  font-size: 13px;
+  fill: #222;
+}
+
+.tree-edge {
+  stroke: #999;
+  stroke-width: 2;
+}
+
+dialog {
+  border: none;
+  border-radius: 8px;
+  padding: 1.25rem;
+  width: min(90vw, 400px);
+}
+
+dialog::backdrop {
+  background: rgba(0, 0, 0, 0.35);
+}
+
+form label {
+  display: block;
+  margin-bottom: 0.6rem;
+  font-size: 0.9rem;
+}
+
+form input,
+form textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 0.2rem;
+  padding: 0.4rem;
+  font: inherit;
+}
+
+.dialog-actions,
+.relative-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.75rem;
+}
+
+.danger {
+  margin-left: auto;
+  color: #b3261e;
+}
