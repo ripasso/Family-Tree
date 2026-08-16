@@ -439,10 +439,14 @@ function addRelative(kind) {
     people.set(newId, newPerson);
     people.set(currentId, { ...current, spouses: [...(current.spouses || []), newId] });
   } else if (kind === "child") {
-    newPerson.parents = [currentId];
+    // Link to the current person's spouse too (if they have one),
+    // so the parent->child line in render() stems from the couple's
+    // midpoint rather than from just one parent.
+    const spouseId = (current.spouses || [])[0];
+    newPerson.parents = spouseId ? [currentId, spouseId] : [currentId];
     people.set(newId, newPerson);
-    // No change needed on the current person's own record — a
-    // child links up to its parent, not the other way around.
+    // No change needed on either parent's own record — a child
+    // links up to its parents, not the other way around.
   } else if (kind === "parent") {
     const existingParents = current.parents || [];
     if (existingParents.length >= 2) {
