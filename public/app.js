@@ -438,6 +438,19 @@ function addRelative(kind) {
     newPerson.spouses = [currentId];
     people.set(newId, newPerson);
     people.set(currentId, { ...current, spouses: [...(current.spouses || []), newId] });
+
+    // Backfill: any children this person already had recorded (with
+    // only one parent slot filled) get the new spouse as their
+    // second parent too, so the parent->child line stems from the
+    // couple's midpoint even when the spouse was added after the
+    // child. Children added *after* this point already get both
+    // parents at creation time (see the "child" branch below).
+    for (const [childId, child] of allPeopleEntries()) {
+      const parents = child.parents || [];
+      if (parents.includes(currentId) && parents.length < 2 && !parents.includes(newId)) {
+        people.set(childId, { ...child, parents: [...parents, newId] });
+      }
+    }
   } else if (kind === "child") {
     // Link to the current person's spouse too (if they have one),
     // so the parent->child line in render() stems from the couple's
