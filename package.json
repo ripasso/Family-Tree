@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "description": "Small self-hosted collaborative family tree app.",
   "scripts": {
+    "start": "YPERSISTENCE=./data node ./node_modules/y-websocket/bin/server.cjs",
     "start-server": "PORT=1234 YPERSISTENCE=./data node ./node_modules/y-websocket/bin/server.cjs",
     "serve": "npx --yes serve public"
   },
