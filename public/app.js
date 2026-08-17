@@ -243,6 +243,31 @@ function computeLayout() {
       }
     }
 
+    // Siblings (children sharing the exact same recorded parents)
+    // all seed to the identical x above (their parents' midpoint).
+    // Left uncorrected, the push-apart sweep below would cascade
+    // every extra sibling off to one side of that midpoint. Instead,
+    // spread each sibling group out symmetrically around its shared
+    // seed x, so the parent->child "bus" line (see render()) centers
+    // under the parents rather than starting from one edge.
+    const siblingGroups = new Map();
+    for (const id of ids) {
+      const person = people.get(id);
+      const parentIds = (person.parents || []).filter((pid) => positions.has(pid));
+      if (parentIds.length === 0) continue;
+      const key = parentIds.slice().sort().join(",");
+      if (!siblingGroups.has(key)) siblingGroups.set(key, []);
+      siblingGroups.get(key).push(id);
+    }
+    for (const siblingIds of siblingGroups.values()) {
+      if (siblingIds.length < 2) continue;
+      const centerX = positions.get(siblingIds[0]);
+      const count = siblingIds.length;
+      siblingIds.forEach((id, i) => {
+        positions.set(id, centerX + (i - (count - 1) / 2) * MIN_SPACING);
+      });
+    }
+
     // Sweep left-to-right and push apart anyone too close together.
     ids.sort((a, b) => positions.get(a) - positions.get(b));
     for (let i = 1; i < ids.length; i++) {
@@ -311,6 +336,15 @@ function render() {
 
   // Parent -> child lines. Drawn before the circles so the lines
   // appear to go "into" the nodes rather than on top of them.
+  //
+  // Siblings (children who share the exact same set of recorded
+  // parents) are grouped together and branch off a single shared
+  // "bus": a line drops straight down from the parents' midpoint,
+  // then a horizontal line spans the siblings, with a short drop
+  // to each child. A lone child just gets a single straight line,
+  // same as before — the branching only kicks in once there's more
+  // than one sibling to fan out to.
+  const childrenByParents = new Map();
   for (const id of ids) {
     const person = people.get(id);
     // A stale id (referencing someone who was deleted) is simply
@@ -318,10 +352,33 @@ function render() {
     const parentIds = (person.parents || []).filter((pid) => people.has(pid));
     if (parentIds.length === 0) continue;
 
+    const key = parentIds.slice().sort().join(",");
+    if (!childrenByParents.has(key)) {
+      childrenByParents.set(key, { parentIds, childIds: [] });
+    }
+    childrenByParents.get(key).childIds.push(id);
+  }
+
+  for (const { parentIds, childIds } of childrenByParents.values()) {
     const parentXs = parentIds.map((pid) => positions.get(pid));
     const sourceX = parentXs.reduce((sum, x) => sum + x, 0) / parentXs.length;
     const sourceY = yOf(parentIds[0]);
-    drawLine(sourceX, sourceY, positions.get(id), yOf(id));
+    const childY = yOf(childIds[0]); // siblings share parents, so they share a generation
+
+    if (childIds.length === 1) {
+      drawLine(sourceX, sourceY, positions.get(childIds[0]), childY);
+      continue;
+    }
+
+    const busY = sourceY + (childY - sourceY) / 2;
+    drawLine(sourceX, sourceY, sourceX, busY);
+
+    const childXs = childIds.map((cid) => positions.get(cid));
+    drawLine(Math.min(...childXs), busY, Math.max(...childXs), busY);
+
+    for (const cid of childIds) {
+      drawLine(positions.get(cid), busY, positions.get(cid), childY);
+    }
   }
 
   // Spouse <-> spouse lines. Each pair only needs to be drawn
